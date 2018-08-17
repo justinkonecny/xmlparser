@@ -1,0 +1,155 @@
+#!/usr/bin/python3
+import sys
+import os
+
+from bs4 import BeautifulSoup
+
+# global variables
+display_keys = True
+hosts_only = False
+output_format = ""
+usage = ("Usage:" + os.linesep + "  xmlparser <xml input file> [-v] [-n]" + os.linesep
+         + "    -v:    print attribute values only" + os.linesep + "    -n:    print host names only")
+
+
+# main function to handle xml parsing
+def main():
+    # handles help/usage command
+    if len(sys.argv) == 2 and (sys.argv[1] == "--help" or sys.argv[1] == "-h"):
+        print(usage)
+    # handles program arguments
+    elif 1 < len(sys.argv) < 5:
+        # processes all optional commands
+        if len(sys.argv) > 2:
+            for i in range(2, len(sys.argv)):
+                process_cmd(sys.argv[i])
+        execute()
+    else:
+        print(usage)
+        msg = "Invalid number of arguments given: {}".format(len(sys.argv) - 1)
+        raise ValueError(msg)
+
+
+# processes program argument
+def process_cmd(cmd):
+    # processes the 'values only' command
+    if cmd == "-v":
+        global display_keys
+        display_keys = False
+    # processes the 'host names only' command
+    elif cmd == "-n":
+        global hosts_only
+        hosts_only = True
+    elif cmd[:1] == "-":
+        global output_format
+        output_format = cmd[1:]
+
+
+# executes the xml parsing
+def execute():
+    # the input .xml file
+    file_input = sys.argv[1]
+    try:
+        # opens the file and reads the contents
+        with open(file_input) as tls:
+            content = tls.read()
+            results = parse_xml(content)
+        print_results(results)
+    except IOError as e:
+        print(usage)
+        print(e)
+        sys.exit(1)
+
+
+# returns the list of hosts from the given xml content
+def parse_xml(content):
+    soup = BeautifulSoup(content, 'html.parser')
+    host_list_xml = soup.find_all("ssltest")
+    host_list = []
+
+    # iterate through and store every host
+    for host_xml in host_list_xml:
+        host_name = host_xml['host']
+        host_port = host_xml['port']
+        cipher_list_xml = host_xml.find_all("cipher")
+        host = dict()
+        host['host'] = host_name
+        host['port'] = host_port
+        cipher_list_compl = []
+
+        # iterate through and store every cipher tag
+        for cipher_xml in cipher_list_xml:
+            cipher_indiv = []
+
+            # iterate through and store every attribute of the cipher tag
+            for attr in cipher_xml.attrs:
+                cipher_attr = dict()
+                value = cipher_xml.attrs.get(attr)
+                cipher_attr[attr] = value
+                cipher_indiv.append(cipher_attr)
+
+            # add each cipher tag to the list of cipher tags
+            cipher_list_compl.append(cipher_indiv)
+
+            # add the list of ciphers to the given host
+            host['ciphers'] = cipher_list_compl
+
+        # add the host to the list of hosts
+        host_list.append(host)
+
+    return host_list
+
+
+# prints the given results to the console
+def print_results(results):
+    for host in results:
+        # specified output format
+        str_format = output_format
+        if not output_format == "":
+            str_format = replace_modifier(str_format, "host", host['host'])
+            str_format = replace_modifier(str_format, "h", host['host'])
+            str_format = replace_modifier(str_format, "port", host['port'])
+            str_format = replace_modifier(str_format, "p", host['port'])
+            print(str_format)
+        # default output
+        else:
+            if not hosts_only:
+                print("==" * 40)
+            # build the host string
+            str_host = host['host']
+            if display_keys:
+                str_host = "[host]: ".ljust(15) + str_host
+            print(str_host)
+
+            if not hosts_only:
+                # build the port string
+                str_port = host['port']
+                if display_keys:
+                    str_port = "[port]: ".ljust(15) + str_port
+                print(str_port)
+                print()
+
+                # build the cipher strings
+                for cipher in host['ciphers']:
+                    for attribute in cipher:
+                        for key, value in attribute.items():
+                            str_attr = value
+                            if display_keys:
+                                str_attr = "[{}]: ".format(key).ljust(15) + str_attr
+                            print(str_attr)
+                    print()
+                print("==" * 40)
+
+
+# replaces modifiers ('%keyword') in the specified output format to the given val
+def replace_modifier(str_format, keyword, val):
+    for i in range(0, len(str_format)):
+        if str_format[i] == "%":
+            if str_format[i + 1:i + len(keyword) + 1] == keyword:
+                return str_format[:i] + val + str_format[i + len(keyword) + 1:]
+    return str_format
+
+
+# executes the script
+if __name__ == '__main__':
+    main()
