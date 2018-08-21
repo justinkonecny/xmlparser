@@ -63,8 +63,11 @@ def execute_all():
     with open(out_sheet, 'w', newline='') as output:
         output_sheet = csv.writer(output)
         output_sheet.writerow(["Host", "Port", "TLSv1.2", "TLSv1.1", "TLSv1.0"])
+        count_host = 0
         for input_sheet in input_sheets:
-            execute(input_sheet, output_sheet)
+            size = execute(input_sheet, output_sheet)
+            count_host += size
+        print("[{:,} Total Hosts Found]".format(count_host))
 
 
 # executes the xml parsing
@@ -76,6 +79,7 @@ def execute(file_input, output_sheet):
             host_list = parse_xml(content)
         print_results(host_list)
         write_csv(host_list, output_sheet)
+        return len(host_list)
     except IOError as e:
         print(usage)
         print(e)
