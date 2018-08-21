@@ -108,6 +108,7 @@ def parse_xml(content):
             host['ciphers'] = cipher_list_compl
         # add the host to the list of hosts
         host_list.append(host)
+    print("[{:,} Hosts Found]".format(len(host_list)))
     return host_list
 
 
