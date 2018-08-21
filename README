@@ -6,5 +6,5 @@ Usage:
     -v, --values:        print attribute values only
     -n, --names:         print host names only
     -p, --print:         print without writing to CSV file
-    -o=<files name:      specifies output csv file name
+    -o=<file name>:      specifies output csv file name
     -{format}:           %h for host name, %p for port, e.g. '-%h:%p'
