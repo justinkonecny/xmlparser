@@ -8,13 +8,16 @@ import csv
 # global variables
 display_keys = True
 hosts_only = False
+print_only = False
 out_sheet = "Results.csv"
 output_format = ""
 input_sheets = []
-usage = ("Usage:" + os.linesep + "  xmlparser <xml input file> [-v] [-n] [-o=<file name>]"
-         + os.linesep + "    -v:    print attribute values only"
-         + os.linesep + "    -n:    print host names only"
-         + os.linesep + "    -o:    specifies output csv file name")
+usage = ("Usage:" + os.linesep + "  xmlparser <xml input file> [xml input files...] [options]"
+         + os.linesep + "    -v, --values:".ljust(25) + "print attribute values only"
+         + os.linesep + "    -n, --names:".ljust(25) + "print host names only"
+         + os.linesep + "    -p, --print:".ljust(25) + "print without writing to CSV file"
+         + os.linesep + "    -o=<files name:".ljust(25) + "specifies output csv file name"
+         + os.linesep + "    -{format}:".ljust(25) + "%h for host name, %p for port, e.g. \'-%h:%p\'")
 
 
 # main function to handle xml parsing
@@ -28,7 +31,7 @@ def main():
         # processes all optional commands
         if len(sys.argv) > 2:
             process_cmd(sys.argv[2:])
-        execute_all();
+        execute_all()
     else:
         print(usage)
         msg = "Invalid number of arguments given: {}".format(len(sys.argv) - 1)
@@ -37,49 +40,57 @@ def main():
 
 # processes program argument
 def process_cmd(args):
-    for i in range(0, len(args)):
-        cmd = args[i]
-        # processes the 'values only' command
-        if cmd == "-v":
+    for cmd in args:
+        # processes the 'values only' argument
+        if cmd == "-v" or cmd == "--values":
             global display_keys
             display_keys = False
-        # processes the 'host names only' command
-        elif cmd == "-n":
+        # processes the 'host names only' argument
+        elif cmd == "-n" or cmd == "--names":
             global hosts_only
             hosts_only = True
-        # processes command to specify output file name
+        # processes argument to print without writing to CSV
+        elif cmd == "-p" or cmd == "--print":
+            global print_only
+            print_only = True
+        # processes argument to specify output file name
         elif cmd[:3] == "-o=":
             global out_sheet
             out_sheet = cmd[3:]
+        # processes argument for specific output format (e.g. -%h:%p => host:port)
         elif cmd[:1] == "-":
             global output_format
             output_format = cmd[1:]
+        # otherwise assume argument is an input xml sheet
         else:
             global input_sheets
             input_sheets.append(cmd)
 
 
+# executes reading and printing values from all given input files
 def execute_all():
-    with open(out_sheet, 'w', newline='') as output:
-        output_sheet = csv.writer(output)
-        output_sheet.writerow(["Host", "Port", "TLSv1.2", "TLSv1.1", "TLSv1.0"])
-        count_host = 0
-        for input_sheet in input_sheets:
-            size = execute(input_sheet, output_sheet)
-            count_host += size
-        print("[{:,} Total Hosts Found]".format(count_host))
+    host_list = []
+    for input_sheet in input_sheets:
+        host_list += execute(input_sheet)
+    print_results(host_list)
+    print("[{:,} Total Hosts Found]".format(len(host_list)))
+    # writes output to csv
+    if not print_only:
+        with open(out_sheet, 'w', newline='') as output:
+            output_sheet = csv.writer(output)
+            output_sheet.writerow(["Host", "Port", "TLSv1.2", "TLSv1.1", "TLSv1.0"])
+            write_to_csv(host_list, output_sheet)
 
 
 # executes the xml parsing
-def execute(file_input, output_sheet):
+def execute(file_input):
     try:
         # opens the file and reads the contents
         with open(file_input) as tls:
             content = tls.read()
             host_list = parse_xml(content)
-        print_results(host_list)
-        write_csv(host_list, output_sheet)
-        return len(host_list)
+            print("[{:,} Hosts Found For \"{}\"]".format(len(host_list), file_input))
+        return host_list
     except IOError as e:
         print(usage)
         print(e)
@@ -106,12 +117,11 @@ def parse_xml(content):
         # iterate through and store every cipher tag
         for cipher_xml in cipher_list_xml:
             cipher_indiv = {}
-
             # iterate through and store every attribute of the cipher tag
             for key in cipher_xml.attrs:
                 value = cipher_xml.attrs.get(key)
                 cipher_indiv[key] = value
-
+            # check the cipher tag to save the tls version
             if "status" in cipher_indiv and (cipher_indiv["status"] == "preferred" or cipher_indiv["status"] == "accepted"):
                 if "sslversion" in cipher_indiv:
                     tls_version = cipher_indiv["sslversion"]
@@ -123,12 +133,11 @@ def parse_xml(content):
             host['ciphers'] = cipher_list_compl
         # add the host to the list of hosts
         host_list.append(host)
-    print("[{:,} Hosts Found]".format(len(host_list)))
     return host_list
 
 
 # writes the results of the given host list to a csv file
-def write_csv(host_list, output_sheet):
+def write_to_csv(host_list, output_sheet):
     for host in host_list:
         row = [host['host'], host['port']]
         # updates the row information for each tls version
