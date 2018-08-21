@@ -10,7 +10,8 @@ display_keys = True
 hosts_only = False
 out_sheet = "Results.csv"
 output_format = ""
-usage = ("Usage:" + os.linesep + "  xmlparser <xml input file> [-v] [-n] [-o <file name>]"
+input_sheets = []
+usage = ("Usage:" + os.linesep + "  xmlparser <xml input file> [-v] [-n] [-o=<file name>]"
          + os.linesep + "    -v:    print attribute values only"
          + os.linesep + "    -n:    print host names only"
          + os.linesep + "    -o:    specifies output csv file name")
@@ -23,10 +24,11 @@ def main():
         print(usage)
     # handles program arguments
     elif 1 < len(sys.argv):
+        input_sheets.append(sys.argv[1])
         # processes all optional commands
         if len(sys.argv) > 2:
             process_cmd(sys.argv[2:])
-        execute()
+        execute_all();
     else:
         print(usage)
         msg = "Invalid number of arguments given: {}".format(len(sys.argv) - 1)
@@ -46,25 +48,34 @@ def process_cmd(args):
             global hosts_only
             hosts_only = True
         # processes command to specify output file name
-        elif cmd == "-o" and len(args) > i + 1:
+        elif cmd[:3] == "-o=":
             global out_sheet
-            out_sheet = args[i + 1]
+            out_sheet = cmd[3:]
         elif cmd[:1] == "-":
             global output_format
             output_format = cmd[1:]
+        else:
+            global input_sheets
+            input_sheets.append(cmd)
+
+
+def execute_all():
+    with open(out_sheet, 'w', newline='') as output:
+        output_sheet = csv.writer(output)
+        output_sheet.writerow(["Host", "Port", "TLSv1.2", "TLSv1.1", "TLSv1.0"])
+        for input_sheet in input_sheets:
+            execute(input_sheet, output_sheet)
 
 
 # executes the xml parsing
-def execute():
-    # the input .xml file
-    file_input = sys.argv[1]
+def execute(file_input, output_sheet):
     try:
         # opens the file and reads the contents
         with open(file_input) as tls:
             content = tls.read()
             host_list = parse_xml(content)
         print_results(host_list)
-        write_csv(host_list)
+        write_csv(host_list, output_sheet)
     except IOError as e:
         print(usage)
         print(e)
@@ -113,17 +124,14 @@ def parse_xml(content):
 
 
 # writes the results of the given host list to a csv file
-def write_csv(host_list):
-    with open(out_sheet, 'w') as output:
-        output_sheet = csv.writer(output)
-        output_sheet.writerow(["Host", "Port", "TLSv1.2", "TLSv1.1", "TLSv1.0"])
-        for host in host_list:
-            row = [host['host'], host['port']]
-            # updates the row information for each tls version
-            check_tls(host["ssl_versions"], row, "TLSv1.2")
-            check_tls(host["ssl_versions"], row, "TLSv1.1")
-            check_tls(host["ssl_versions"], row, "TLSv1.0")
-            output_sheet.writerow(row)
+def write_csv(host_list, output_sheet):
+    for host in host_list:
+        row = [host['host'], host['port']]
+        # updates the row information for each tls version
+        check_tls(host["ssl_versions"], row, "TLSv1.2")
+        check_tls(host["ssl_versions"], row, "TLSv1.1")
+        check_tls(host["ssl_versions"], row, "TLSv1.0")
+        output_sheet.writerow(row)
 
 
 # updates the given row string specifying what tls versions are present
