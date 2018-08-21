@@ -16,7 +16,7 @@ usage = ("Usage:" + os.linesep + "  xmlparser <xml input file> [xml input files.
          + os.linesep + "    -v, --values:".ljust(25) + "print attribute values only"
          + os.linesep + "    -n, --names:".ljust(25) + "print host names only"
          + os.linesep + "    -p, --print:".ljust(25) + "print without writing to CSV file"
-         + os.linesep + "    -o=<files name:".ljust(25) + "specifies output csv file name"
+         + os.linesep + "    -o=<file name>:".ljust(25) + "specifies output csv file name"
          + os.linesep + "    -{format}:".ljust(25) + "%h for host name, %p for port, e.g. \'-%h:%p\'")
 
 
