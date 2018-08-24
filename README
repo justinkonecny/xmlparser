@@ -8,3 +8,4 @@ Usage:
     -p, --print:         print without writing to CSV file
     -o=<file name>:      specifies output csv file name
     -{format}:           %h for host name, %p for port, e.g. '-%h:%p'
+    -h, --help:          print usage information
