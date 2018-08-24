@@ -41,8 +41,12 @@ def main():
 # processes program argument
 def process_cmd(args):
     for cmd in args:
+        # print usage message
+        if cmd == "-h" or cmd == "--help":
+            print(usage)
+            exit()
         # processes the 'values only' argument
-        if cmd == "-v" or cmd == "--values":
+        elif cmd == "-v" or cmd == "--values":
             global display_keys
             display_keys = False
         # processes the 'host names only' argument
